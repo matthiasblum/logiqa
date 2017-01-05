@@ -1,0 +1,137 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# Author: Matthias Blum
+# Contact: mat.blum@gmail.com
+
+import argparse
+import logging
+import math
+import os
+import sys
+
+from logiqa import logiqa
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(message)s ',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stderr,
+)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='LOGIQA: Long-range Genome Interactions Quality Assessment')
+    parser.add_argument('input', metavar='<in.txt>', help='input contacts file')
+    parser.add_argument('outputs', metavar='<out.h5>', help='output file(s)', nargs='+')
+    parser.add_argument('-g', dest='genome', help='genome assembly (dm3, hg19, or mm9) or chromosome sizes file', required=True)
+    parser.add_argument('-r', dest='resolutions', metavar='INT', help='resolution(s) in bp', required=True, type=int,
+                        nargs='+')
+    parser.add_argument('-d', dest='mindist', metavar='INT', help='minimal contact distance [10000]', type=int,
+                        default=10000)
+    parser.add_argument('-q', dest='mapq', metavar='INT', help='minimal mapping quality [0]', type=int, default=0)
+    parser.add_argument('--verbose', action='store_true', help='display progress messages [false]')
+    parser.add_argument('--asymmetric', action='store_true', help='run LOGIQA in asymmetric matrix mode [false]')
+    parser.add_argument('--text', action='store_true', help='output files in textual format [false]')
+    parser.add_argument('--plot', action='store_true', help='generate a scatter plot of the global quality score of the input data set in the context of the LOGIQA collection')
+    argv = parser.parse_args()
+
+    if argv.input != '-' and not os.path.isfile(argv.input):
+        sys.stderr.write('{}: no such file or directory\n'.format(argv.input))
+        exit(1)
+    elif argv.mindist < 0:
+        sys.stderr.write('{}: invalid distance\n'.format(argv.mindist))
+        exit(1)
+    elif len(argv.outputs) != len(argv.resolutions):
+        sys.stderr.write('Different number of output files and resolutions\n')
+        exit(1)
+    elif any([r <= 0 for r in argv.resolutions]):
+        sys.stderr.write('{}: invalid resolution\n'.format(argv.resolution))
+        exit(1)
+    elif os.path.isfile(argv.genome):
+        chrom_sizes = logiqa.load_chrom_sizes(argv.genome)
+    elif not logiqa.load_assembly(argv.genome):
+        sys.stderr.write('{}: not supported genome assembly\n'.format(argv.genome))
+        exit(1)
+    else:
+        chrom_sizes = logiqa.load_assembly(argv.genome)
+
+    if argv.plot:
+        import matplotlib.pyplot as plt
+        try:
+            plt.style.use('ggplot')
+        except IOError:
+            pass
+
+        db = logiqa.load_db(argv.genome)
+    else:
+        db = None
+
+    track = logiqa.HiCTrack(chrom_sizes, asymmetric=argv.asymmetric)
+
+    if argv.verbose:
+        logging.info('Loading contacts')
+    track.load_pairs(argv.input, q=argv.mapq, verbose=int(argv.verbose))
+
+    if argv.verbose:
+        logging.info('Removing PCR duplicates')
+    track.remove_dup()
+
+    if argv.verbose:
+        logging.info('Removing trans-chromosomal contacts')
+    track.remove_trans()
+
+    if argv.verbose:
+        logging.info('Removing short-range contacts')
+    track.remove_close(argv.mindist)
+
+    for i, res in enumerate(argv.resolutions):
+        if argv.verbose:
+            logging.info('Binning (resolution: {})'.format(res))
+        track.bin(res, chrom_sizes)
+
+        if argv.verbose:
+            logging.info('Sampling contacts')
+        track.sample()
+
+        pets, score15 = track.write(argv.outputs[i], res, astext=argv.text)
+
+        if argv.plot and db:
+            try:
+                score15 = math.log10(score15)
+            except ValueError:
+                continue
+
+            x_data = []
+            y_data = []
+            for d in db:
+                try:
+                    x = d['pets']
+                    y = d[str(res)]
+                except KeyError:
+                    continue
+                else:
+                    if y:
+                        x_data.append(x)
+                        y_data.append(y)
+
+            if x_data:
+                fig = plt.figure(figsize=(7, 4))
+                ax = fig.add_subplot(1, 1, 1)
+                ax.scatter(x_data, y_data, color='#999999', marker='o', alpha=0.5)
+                ax.scatter(pets, score15, color='#0072B2', marker='o')
+                # ax.set_title('')
+                ax.set_xlabel('Filtered PET counts (lo10)')
+                ax.set_ylabel('Quality score (log2)')
+                ax.set_xlim([min(x_data + [pets]) * 0.95, max(x_data + [pets]) * 1.05])
+                ax.set_ylim([min(y_data + [score15]) * 0.95, max(y_data + [score15]) * 1.05])
+                ax.set_xscale('log')
+                fig.savefig(argv.outputs[i] + '.png')
+
+
+
+
+
+
+if __name__ == '__main__':
+    main()
