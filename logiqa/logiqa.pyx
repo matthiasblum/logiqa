@@ -98,19 +98,19 @@ cdef class HiCTrack:
         self.counts.s50_d5 = 0
         self.resolution = 0
 
-    cpdef load_pairs(self, str filename, int q=0, int verbose=0):
+    cpdef load_pairs(self, filename, int q=0, int verbose=0):
         cdef:
             str line
             char chrom1[32]
             char chrom2[32]
-            char strand1 = b'+'
-            char strand2 = b'+'
-            int pos1 = 0
-            int pos2 = 0
+            char strand1
+            char strand2
+            int pos1
+            int pos2
             int nfields
-            short int istrand1 = 1
-            short int istrand2 = 1
-            int mapq = 0
+            short int istrand1
+            short int istrand2
+            int mapq
             unsigned long i = 0
             unsigned long npairs = 0
             unsigned long npairs_trans = 0
@@ -119,9 +119,9 @@ cdef class HiCTrack:
         if filename == '-':
             fh = sys.stdin
         elif isgzip(filename):
-            fh = io.BufferedReader(gzip.open(filename, 'rt'))
+            fh = io.BufferedReader(gzip.open(filename, 'r'))
         else:
-            fh = open(filename, 'rt')
+            fh = open(filename, 'r')
 
         for line in fh:
             i += 1
@@ -148,8 +148,8 @@ cdef class HiCTrack:
                 npairs_cis += 1
 
             npairs += 1
-            istrand1 = strand1 == b'+'
-            istrand2 = strand2 == b'+'
+            istrand1 = strand1 == '+'
+            istrand2 = strand2 == '+'
             self.add_pair(chrom1, pos1, istrand1, chrom2, pos2, istrand2)
 
         fh.close()
@@ -214,7 +214,7 @@ cdef class HiCTrack:
                 """
                 is_unique = np.ones(arr.size, dtype=bool)
 
-                for i in np.range(1, arr.size):
+                for i in np.arange(1, arr.size):
                     if arr[i] == arr[i-1]:
                         is_unique[i] = 0
 
@@ -230,7 +230,7 @@ cdef class HiCTrack:
                 arr_unique[0] = (prev_pos1, prev_pos2)
                 npairs_unique = 1
 
-                for i in np.range(1, arr.size):
+                for i in np.arange(1, arr.size):
                     pos1 = arr[i]['l']
                     pos2 = arr[i]['r']
                     strand1 = arr[i]['s1']
@@ -499,8 +499,8 @@ cdef sample_mat(mat, unsigned long x,
         np.ndarray[np.float32_t, ndim=1] data50 = np.zeros(n, dtype=np.float32)
         unsigned int i
 
-    for i in np.range(n):
-        for _ in np.range(data[i]):
+    for i in np.arange(n):
+        for _ in np.arange(data[i]):
             if rs90[x]:
                 data90[i] += 1
             if rs70[x]:
@@ -526,7 +526,7 @@ cdef count_bins(np.ndarray[np.float32_t, ndim=1] d90,
         unsigned int i = 0
         unsigned int n = d90.size
 
-    for i in np.range(n):
+    for i in np.arange(n):
         if d90[i] < 15:
             counts.s90_d15 += 1
 
