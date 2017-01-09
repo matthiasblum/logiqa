@@ -9,7 +9,7 @@ import numpy as np
 
 def main():
     ext_modules = [
-        Extension("logiqa.logiqa", ["logiqa/logiqa.pyx"], include_dirs=[np.get_include()])
+        Extension("logiqa.logiqa", ["logiqa/logiqa.c"], include_dirs=[np.get_include()])
     ]
 
     setup(name='LOGIQA',
@@ -24,7 +24,8 @@ def main():
           package_dir={'logiqa': 'logiqa'},
           packages=['logiqa'],
           install_requires=['Cython>=0.22', 'h5py>=2.5.0', 'numpy>=1.6', 'scipy>=0.15.1'],
-          ext_modules=cythonize(ext_modules)
+          ext_modules=ext_modules
+          #ext_modules=cythonize(ext_modules)
           )
 
 

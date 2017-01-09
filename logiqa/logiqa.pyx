@@ -103,14 +103,14 @@ cdef class HiCTrack:
             str line
             char chrom1[32]
             char chrom2[32]
-            char strand1
-            char strand2
-            int pos1
-            int pos2
+            char strand1 = b'+'
+            char strand2 = b'+'
+            int pos1 = 0
+            int pos2 = 0
             int nfields
-            short int istrand1
-            short int istrand2
-            int mapq
+            short int istrand1 = 1
+            short int istrand2 = 1
+            int mapq = 0
             unsigned long i = 0
             unsigned long npairs = 0
             unsigned long npairs_trans = 0
@@ -148,8 +148,8 @@ cdef class HiCTrack:
                 npairs_cis += 1
 
             npairs += 1
-            istrand1 = strand1 == '+'
-            istrand2 = strand2 == '+'
+            istrand1 = strand1 == b'+'
+            istrand2 = strand2 == b'+'
             self.add_pair(chrom1, pos1, istrand1, chrom2, pos2, istrand2)
 
         fh.close()
@@ -275,8 +275,6 @@ cdef class HiCTrack:
     @cython.cdivision(True)
     cpdef bin(self, unsigned int resolution, dict chrom_sizes):
         cdef:
-            unsigned long i
-            unsigned int midpoint
             unsigned int size
 
         self.resolution = resolution
@@ -472,7 +470,7 @@ cdef double calc_score(unsigned long contacts90, unsigned long contacts70, unsig
         double denqc90
         double denqc70
         double denqc50
-        double score
+        double score = 0
 
     try:
         denqc90 = <double>contacts90 / <double>ncontacts
@@ -480,7 +478,7 @@ cdef double calc_score(unsigned long contacts90, unsigned long contacts70, unsig
         denqc50 = <double>contacts50 / <double>ncontacts
         score = (pow(denqc50, 2) / denqc90) * (pow(denqc70, 2) / denqc90)
     except ZeroDivisionError:
-        score = -1
+        return -1
     finally:
         return score
 
@@ -494,18 +492,15 @@ cdef sample_mat(mat, unsigned long x,
                 np.ndarray[np.int8_t, ndim=1, cast=True] rs50
                 ):
     cdef:
-        np.ndarray[np.int32_t, ndim=1] row = mat.row
-        np.ndarray[np.int32_t, ndim=1] col = mat.col
         np.ndarray[np.int32_t, ndim=1] data = mat.data
         unsigned int n = data.size
         np.ndarray[np.float32_t, ndim=1] data90 = np.zeros(n, dtype=np.float32)
         np.ndarray[np.float32_t, ndim=1] data70 = np.zeros(n, dtype=np.float32)
         np.ndarray[np.float32_t, ndim=1] data50 = np.zeros(n, dtype=np.float32)
         unsigned int i
-        unsigned int j
 
     for i in np.range(n):
-        for j in np.range(data[i]):
+        for _ in np.range(data[i]):
             if rs90[x]:
                 data90[i] += 1
             if rs70[x]:
@@ -598,7 +593,7 @@ def load_chrom_sizes(filename):
 
 
 def load_db(assembly):
-    db = {}
+    data = {}
     filename = os.path.join(os.path.dirname(__file__), 'db.json')
     if os.path.isfile(filename):
         with open(filename, 'rt') as fh:
