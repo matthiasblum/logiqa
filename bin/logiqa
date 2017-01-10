@@ -129,9 +129,5 @@ def main():
                 fig.savefig(argv.outputs[i] + '.png')
 
 
-
-
-
-
 if __name__ == '__main__':
     main()
