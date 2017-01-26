@@ -95,7 +95,7 @@ If the output files are in HDF5 format, they contain:
 
 If they are in textual format, they contain a header (line starts with "#") and the loops with the following format:
 
-| chr | pos1 | pos2 | cound | disp90 | disp70 | disp50 |
+| chr | pos1 | pos2 | count | disp90 | disp70 | disp50 |
 |-----|------|------|-------|--------|--------|--------|
 | chr1 | 32305000 | 32345000 | 9 | 10.000000 | 14.444445 | 5.555555 |
 | chr1 | 35290000 | 35290000 | 11 | 10.000000 | 6.363636 | 13.636364 |
